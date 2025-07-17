@@ -1,39 +1,101 @@
 let { contas, saques, depositos, transferenciasEnviadas, transferenciasRecebidas } = require('../bancodedados')
-const funcoes = require('./funcoes')
+const { buscarCpf, buscarEmail, gerarNumeroConta } = require('../controladores/funcoes')
 const { format } = require('date-fns')
 
 const listarContas = (req, res) => {
     return res.status(200).json(contas)
 }
 
+// const criarConta = (req, res) => {
+//     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
+    
+//     if (!nome || !cpf || !data_nascimento || !telefone || !email || !senha) {
+//         return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
+//     }
+
+//     if (funcoes.buscarCpf(cpf)) {
+//         return res.status(400).json({mensagem: "Já existe uma conta com o CPF informado!"})
+//     }
+//     if (funcoes.buscarEmail(email)) {
+//         return res.status(400).json({mensagem: "Já existe uma conta com o E-mail informado!"})
+//     }// Remove tudo que não for número
+//     let apenasNumeros = telefone.replace(/\D/g, '');
+//     // Valida se tem exatamente 11 dígitos
+//     if (apenasNumeros.length !== 11) {
+//         throw new Error('Telefone precisa ter exatamente 11 dígitos');
+//     }
+//     telefone = apenasNumeros
+
+//     contas.push({
+//         numero_conta: Number(funcoes.gerarNumeroConta(telefone)),
+//         saldo: 0,
+//         usuario: {
+//             nome,
+//             cpf,
+//             data_nascimento,
+//             telefone,
+//             email,
+//             senha
+//         }
+//     })
+
+//     return res.status(201).json()
+// }
+
 const criarConta = (req, res) => {
     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
-    
-    if (!nome || !cpf || !data_nascimento || !telefone || !email || !senha) {
-        return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
+
+    // ✅ Validação de campos obrigatórios
+    const camposObrigatorios = { nome, cpf, data_nascimento, telefone, email, senha }
+    for (const campo in camposObrigatorios) {
+        if (!camposObrigatorios[campo]) {
+            return res.status(400).json({
+                mensagem: `O campo '${campo}' é obrigatório.`
+            });
+        }
     }
 
-    if (funcoes.buscarCpf(cpf)) {
-        return res.status(400).json({mensagem: "Já existe uma conta com o CPF informado!"})
-    }
-    if (funcoes.buscarEmail(email)) {
-        return res.status(400).json({mensagem: "Já existe uma conta com o E-mail informado!"})
+    // 🔍 Validações únicas
+    if (buscarCpf(cpf)) {
+        return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado!" })
     }
 
-    contas.push({
-        numero: funcoes.ultimoNumero++,
+    if (buscarEmail(email)) {
+        return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado!" })
+    }
+
+    // 📱 Limpeza e validação do número de telefone
+    const telefoneFormatado = telefone.replace(/\D/g, '')
+    if (telefoneFormatado.length !== 11) {
+        return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." })
+    }
+
+    // 🧠 Geração do número da conta com base no telefone
+    let numeroConta;
+    try {
+        numeroConta = gerarNumeroConta(telefoneFormatado)
+    } catch (erro) {
+        return res.status(400).json({ mensagem: erro.message })
+    }
+
+    // 🧾 Criando nova conta
+    const novaConta = {
+        numero_conta: Number(numeroConta),
         saldo: 0,
         usuario: {
             nome,
             cpf,
             data_nascimento,
-            telefone,
+            telefone: telefoneFormatado,
             email,
             senha
         }
-    })
+    }
 
-    return res.status(201).json()
+    contas.push(novaConta);
+
+    // ✅ Resposta
+    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: novaConta })
 }
 
 const atualizarUsuario = (req, res) => {
@@ -56,10 +118,10 @@ const atualizarUsuario = (req, res) => {
         return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
     }
 
-    if (funcoes.buscarCpf(cpf)) {
+    if (buscarCpf(cpf)) {
         return res.status(400).json({mensagem: "O CPF informado já existe cadastrado!"})
     }
-    if (funcoes.buscarEmail(email)) {
+    if (buscarEmail(email)) {
         return res.status(400).json({mensagem: "O E-mail informado já existe cadastrado!"})
     }
 
@@ -85,7 +147,7 @@ const deletarConta = (req, res) => {
     }
 
     const indiceConta = contas.findIndex((conta) => {
-        return conta.numero === Number(numeroConta)
+        return conta.numero_conta === Number(numeroConta)
     })
 
     if (indiceConta === -1) {
