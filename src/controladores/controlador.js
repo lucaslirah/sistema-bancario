@@ -170,7 +170,7 @@ const depositarValor = (req, res) => {
         mensagem: "Depósito efetuado com sucesso.",
         valor_depositado: valorFloat.toFixed(2),
         saldo_atual: conta.saldo.toFixed(2)
-    });
+    })
 
 }
 
@@ -221,66 +221,74 @@ const sacarValor = (req, res) => {
 const transferirValores = (req, res) => {
     const { numero_conta_origem, numero_conta_destino, valor, senha } = req.body
 
+    // 1. Validação de campos obrigatórios
     if (!numero_conta_origem || !numero_conta_destino || !valor || !senha) {
-        return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
+        return res.status(400).json({ mensagem: "Todos os campos são obrigatórios." })
     }
 
-    if (numero_conta_origem === numero_conta_destino) {
-        return res.status(400).json({mensagem: "Os números de conta são os mesmos!"})
+    // 2. Conversão de tipos
+    const contaOrigemInt = parseInt(numero_conta_origem, 10)
+    const contaDestinoInt = parseInt(numero_conta_destino, 10)
+    const valorFloat = parseFloat(valor)
+
+    // 3. Validação de contas diferentes
+    if (contaOrigemInt === contaDestinoInt) {
+        return res.status(400).json({ mensagem: "Os números de conta são os mesmos." })
     }
 
-    const contaOrigemAchada = contas.find((conta) => {
-        return conta.numero === Number(numero_conta_origem)
-    })
+    // 4. Busca de contas
+    const contaOrigem = contas.find(conta => conta.numero_conta === contaOrigemInt)
+    const contaDestino = contas.find(conta => conta.numero_conta === contaDestinoInt)
 
-    const contaDestinoAchada = contas.find((conta) => {
-        return conta.numero === Number(numero_conta_destino)
-    })
-
-    if (!contaOrigemAchada) {
-        return res.status(404).json({mensagem: "Conta de origem não encontrada!"})
+    if (!contaOrigem) {
+        return res.status(404).json({ mensagem: "Conta de origem não encontrada." })
     }
 
-    if (!contaDestinoAchada) {
-        return res.status(404).json({mensagem: "Conta de destino não encontrada!"})
+    if (!contaDestino) {
+        return res.status(404).json({ mensagem: "Conta de destino não encontrada." })
     }
 
-    if (senha !== contaOrigemAchada.usuario.senha) {
-        return res.status(403).json({mensagem: "Senha incorreta!"})
+    // 5. Validação de senha
+    if (senha !== contaOrigem.usuario.senha) {
+        return res.status(403).json({ mensagem: "Senha incorreta." })
     }
 
-    if (contaOrigemAchada.saldo === 0) {
-        return res.status(400).json({mensagem: "A conta possui saldo zerado!"})
+    // 6. Validações de saldo e valor
+    if (isNaN(valorFloat) || valorFloat <= 0) {
+        return res.status(400).json({ mensagem: "Informe um valor de transferência válido." })
     }
 
-    if (valor <= 0) {
-        return res.status(400).json({mensagem: "Informe um valor de saque válido!"})
+    if (valorFloat > contaOrigem.saldo) {
+        return res.status(400).json({ mensagem: "Saldo insuficiente." })
     }
 
-    if (valor > contaOrigemAchada.saldo) {
-        return res.status(400).json({mensagem: "Saldo insuficiente!"})
-    }
+    // 7. Atualização dos saldos
+    contaOrigem.saldo -= valorFloat
+    contaDestino.saldo += valorFloat
 
-    contaOrigemAchada.saldo -= valor
-    contaDestinoAchada.saldo += valor
-
-    const data = format(new Date(), 'yyyy-dd-MM-HH:mm:ss')
-
+    // 8. Registro da transferência
+    const data = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     transferenciasEnviadas.push({
         data,
-        numero_conta_origem,
-        numero_conta_destino,
-        valor
+        numero_conta_origem: contaOrigemInt,
+        numero_conta_destino: contaDestinoInt,
+        valor: valorFloat
     })
 
     transferenciasRecebidas.push({
         data,
-        numero_conta_origem,
-        numero_conta_destino,
-        valor
+        numero_conta_origem: contaOrigemInt,
+        numero_conta_destino: contaDestinoInt,
+        valor: valorFloat
     })
 
-    return res.status(204).json()
+    // 9. Resposta com dados da operação
+    return res.status(200).json({
+        mensagem: "Transferência realizada com sucesso.",
+        valor_transferido: valorFloat.toFixed(2),
+        saldo_origem: contaOrigem.saldo.toFixed(2),
+        saldo_destino: contaDestino.saldo.toFixed(2)
+    })
 }
 
 const consultarSaldo = (req, res) => {
