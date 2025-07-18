@@ -6,42 +6,6 @@ const listarContas = (req, res) => {
     return res.status(200).json(contas)
 }
 
-// const criarConta = (req, res) => {
-//     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
-    
-//     if (!nome || !cpf || !data_nascimento || !telefone || !email || !senha) {
-//         return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
-//     }
-
-//     if (funcoes.buscarCpf(cpf)) {
-//         return res.status(400).json({mensagem: "Já existe uma conta com o CPF informado!"})
-//     }
-//     if (funcoes.buscarEmail(email)) {
-//         return res.status(400).json({mensagem: "Já existe uma conta com o E-mail informado!"})
-//     }// Remove tudo que não for número
-//     let apenasNumeros = telefone.replace(/\D/g, '');
-//     // Valida se tem exatamente 11 dígitos
-//     if (apenasNumeros.length !== 11) {
-//         throw new Error('Telefone precisa ter exatamente 11 dígitos');
-//     }
-//     telefone = apenasNumeros
-
-//     contas.push({
-//         numero_conta: Number(funcoes.gerarNumeroConta(telefone)),
-//         saldo: 0,
-//         usuario: {
-//             nome,
-//             cpf,
-//             data_nascimento,
-//             telefone,
-//             email,
-//             senha
-//         }
-//     })
-
-//     return res.status(201).json()
-// }
-
 const criarConta = (req, res) => {
     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
 
