@@ -7,10 +7,10 @@ const listarContas = (req, res) => {
 }
 
 const criarConta = (req, res) => {
-    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
+    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
 
-    // ✅ Validação de campos obrigatórios
-    const camposObrigatorios = { nome, cpf, data_nascimento, telefone, email, senha }
+    //  1. Validação de campos obrigatórios
+    const camposObrigatorios = { nome, cpf, data_nascimento, telefone, email, senha };
     for (const campo in camposObrigatorios) {
         if (!camposObrigatorios[campo]) {
             return res.status(400).json({
@@ -19,30 +19,30 @@ const criarConta = (req, res) => {
         }
     }
 
-    // 🔍 Validações únicas
+    //  2. Validações de CPF e E-mail únicos
     if (buscarCpf(cpf)) {
-        return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado!" })
+        return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado." });
     }
 
     if (buscarEmail(email)) {
-        return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado!" })
+        return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado." });
     }
 
-    // 📱 Limpeza e validação do número de telefone
-    const telefoneFormatado = telefone.replace(/\D/g, '')
+    //  3. Formatação e validação de telefone
+    const telefoneFormatado = telefone.replace(/\D/g, '');
     if (telefoneFormatado.length !== 11) {
-        return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." })
+        return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." });
     }
 
-    // 🧠 Geração do número da conta com base no telefone
+    //  4. Geração do número da conta (com tratamento de erro)
     let numeroConta;
     try {
-        numeroConta = gerarNumeroConta(telefoneFormatado)
+        numeroConta = gerarNumeroConta(telefoneFormatado);
     } catch (erro) {
-        return res.status(400).json({ mensagem: erro.message })
+        return res.status(400).json({ mensagem: erro.message });
     }
 
-    // 🧾 Criando nova conta
+    //  5. Criação da conta
     const novaConta = {
         numero_conta: Number(numeroConta),
         saldo: 0,
@@ -54,13 +54,12 @@ const criarConta = (req, res) => {
             email,
             senha
         }
-    }
+    };
 
+    //  6. Persistência e resposta
     contas.push(novaConta);
-
-    // ✅ Resposta
-    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: novaConta })
-}
+    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: novaConta });
+};
 
 const atualizarUsuario = (req, res) => {
     const { numeroConta } = req.params
@@ -104,30 +103,33 @@ const atualizarUsuario = (req, res) => {
 }
 
 const deletarConta = (req, res) => {
-    const { numeroConta } = req.params
+    const { numeroConta } = req.params;
 
-    if (isNaN(numeroConta)) {
-        return res.status(400).json({mensagem: "Número de conta inválido!"})
+    // Validação: número de conta
+    const numeroContaInt = parseInt(numeroConta, 10);
+    if (isNaN(numeroContaInt)) {
+        return res.status(400).json({ mensagem: "Número de conta inválido." });
     }
 
-    const indiceConta = contas.findIndex((conta) => {
-        return conta.numero_conta === Number(numeroConta)
-    })
-
+    // Busca da conta
+    const indiceConta = contas.findIndex(conta => conta.numero_conta === numeroContaInt);
     if (indiceConta === -1) {
-        return res.status(404).json({mensagem: "Conta não encontrada!"})
+        return res.status(404).json({ mensagem: "Conta não encontrada." });
     }
 
-    if (contas[indiceConta].saldo !== 0) {
-        return res.status(400).json({mensagem: "A conta só pode ser removida se o saldo for zero!"})
+    const conta = contas[indiceConta];
+
+    // Validação de saldo
+    if (conta.saldo !== 0) {
+        return res.status(400).json({ mensagem: "A conta só pode ser removida se o saldo for zero." });
     }
 
-    contas = contas.filter((conta) => {
-        return conta !== contas[indiceConta]
-    })
+    // Remoção direta no array original
+    contas.splice(indiceConta, 1);
 
-    return res.status(204).json(contas)
-}
+    //  Resposta sem conteúdo
+    return res.status(204).send(); // Nenhum corpo de resposta
+};
 
 const depositarValor = (req, res) => {
     const { numero_conta, valor } = req.body
