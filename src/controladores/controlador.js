@@ -131,39 +131,6 @@ const deletarConta = (req, res) => {
     return res.status(204).send()
 }
 
-// const depositarValor = (req, res) => {
-//     const { numero_conta, valor } = req.body
-
-//     if (!numero_conta || !valor) {
-//         return res.status(400).json({mensagem: "O número da conta e o valor são obrigatórios!"})
-//     }
-
-//     const contaAchada = contas.find((conta) => {
-//         return conta.numero === Number(numero_conta)
-//     })
-
-//     if (!contaAchada) {
-//         return res.status(404).json({mensagem: "Conta não encontrada!"})
-//     }
-
-//     if (valor <= 0) {
-//         return res.status(400).json({mensagem: "Valor de depósito inválido!"})
-//     }
-
-//     contaAchada.saldo += valor
-
-//     const data = format(new Date(), 'yyyy-dd-MM-HH:mm:ss')
-
-//     depositos.push({
-//         data,
-//         numero_conta,
-//         valor
-//     })
-    
-//     return res.status(204).json()
-
-// }
-
 const depositarValor = (req, res) => {
     const { numero_conta, valor } = req.body
 
