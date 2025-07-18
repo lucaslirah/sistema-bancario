@@ -7,39 +7,39 @@ const listarContas = (req, res) => {
 }
 
 const criarConta = (req, res) => {
-    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
+    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
 
     //  1. Validação de campos obrigatórios
-    const camposObrigatorios = { nome, cpf, data_nascimento, telefone, email, senha };
+    const camposObrigatorios = { nome, cpf, data_nascimento, telefone, email, senha }
     for (const campo in camposObrigatorios) {
         if (!camposObrigatorios[campo]) {
             return res.status(400).json({
                 mensagem: `O campo '${campo}' é obrigatório.`
-            });
+            })
         }
     }
 
     //  2. Validações de CPF e E-mail únicos
     if (buscarCpf(cpf)) {
-        return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado." });
+        return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado." })
     }
 
     if (buscarEmail(email)) {
-        return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado." });
+        return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado." })
     }
 
     //  3. Formatação e validação de telefone
-    const telefoneFormatado = telefone.replace(/\D/g, '');
+    const telefoneFormatado = telefone.replace(/\D/g, '')
     if (telefoneFormatado.length !== 11) {
-        return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." });
+        return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." })
     }
 
     //  4. Geração do número da conta (com tratamento de erro)
-    let numeroConta;
+    let numeroConta
     try {
-        numeroConta = gerarNumeroConta(telefoneFormatado);
+        numeroConta = gerarNumeroConta(telefoneFormatado)
     } catch (erro) {
-        return res.status(400).json({ mensagem: erro.message });
+        return res.status(400).json({ mensagem: erro.message })
     }
 
     //  5. Criação da conta
@@ -54,12 +54,12 @@ const criarConta = (req, res) => {
             email,
             senha
         }
-    };
+    }
 
     //  6. Persistência e resposta
-    contas.push(novaConta);
-    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: novaConta });
-};
+    contas.push(novaConta)
+    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: novaConta })
+}
 
 const atualizarUsuario = (req, res) => {
     const { numeroConta } = req.params
@@ -103,64 +103,107 @@ const atualizarUsuario = (req, res) => {
 }
 
 const deletarConta = (req, res) => {
-    const { numeroConta } = req.params;
+    const { numeroConta } = req.params
 
     // Validação: número de conta
-    const numeroContaInt = parseInt(numeroConta, 10);
+    const numeroContaInt = parseInt(numeroConta, 10)
     if (isNaN(numeroContaInt)) {
-        return res.status(400).json({ mensagem: "Número de conta inválido." });
+        return res.status(400).json({ mensagem: "Número de conta inválido." })
     }
 
     // Busca da conta
-    const indiceConta = contas.findIndex(conta => conta.numero_conta === numeroContaInt);
+    const indiceConta = contas.findIndex(conta => conta.numero_conta === numeroContaInt)
     if (indiceConta === -1) {
-        return res.status(404).json({ mensagem: "Conta não encontrada." });
+        return res.status(404).json({ mensagem: "Conta não encontrada." })
     }
 
-    const conta = contas[indiceConta];
+    const conta = contas[indiceConta]
 
     // Validação de saldo
     if (conta.saldo !== 0) {
-        return res.status(400).json({ mensagem: "A conta só pode ser removida se o saldo for zero." });
+        return res.status(400).json({ mensagem: "A conta só pode ser removida se o saldo for zero." })
     }
 
     // Remoção direta no array original
-    contas.splice(indiceConta, 1);
+    contas.splice(indiceConta, 1)
 
-    //  Resposta sem conteúdo
-    return res.status(204).send(); // Nenhum corpo de resposta
-};
+    //  Resposta
+    return res.status(204).send()
+}
+
+// const depositarValor = (req, res) => {
+//     const { numero_conta, valor } = req.body
+
+//     if (!numero_conta || !valor) {
+//         return res.status(400).json({mensagem: "O número da conta e o valor são obrigatórios!"})
+//     }
+
+//     const contaAchada = contas.find((conta) => {
+//         return conta.numero === Number(numero_conta)
+//     })
+
+//     if (!contaAchada) {
+//         return res.status(404).json({mensagem: "Conta não encontrada!"})
+//     }
+
+//     if (valor <= 0) {
+//         return res.status(400).json({mensagem: "Valor de depósito inválido!"})
+//     }
+
+//     contaAchada.saldo += valor
+
+//     const data = format(new Date(), 'yyyy-dd-MM-HH:mm:ss')
+
+//     depositos.push({
+//         data,
+//         numero_conta,
+//         valor
+//     })
+    
+//     return res.status(204).json()
+
+// }
 
 const depositarValor = (req, res) => {
     const { numero_conta, valor } = req.body
 
+    // 1. Validação de campos obrigatórios
     if (!numero_conta || !valor) {
-        return res.status(400).json({mensagem: "O número da conta e o valor são obrigatórios!"})
+        return res.status(400).json({ mensagem: "O número da conta e o valor são obrigatórios." })
     }
 
-    const contaAchada = contas.find((conta) => {
-        return conta.numero === Number(numero_conta)
-    })
+    // 2. Conversão de valores
+    const numeroContaInt = parseInt(numero_conta, 10)
+    const valorFloat = parseFloat(valor)
 
-    if (!contaAchada) {
-        return res.status(404).json({mensagem: "Conta não encontrada!"})
+    // 3. Validação do valor
+    if (isNaN(valorFloat) || valorFloat <= 0) {
+        return res.status(400).json({ mensagem: "Valor de depósito inválido." })
     }
 
-    if (valor <= 0) {
-        return res.status(400).json({mensagem: "Valor de depósito inválido!"})
+    // 4. Busca da conta
+    const conta = contas.find(conta => conta.numero_conta === numeroContaInt)
+    if (!conta) {
+        return res.status(404).json({ mensagem: "Conta não encontrada." })
     }
 
-    contaAchada.saldo += valor
+    // 5. Atualização do saldo
+    conta.saldo += valorFloat
 
-    const data = format(new Date(), 'yyyy-dd-MM-HH:mm:ss')
-
+    // 6. Registro do depósito
+    const data = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     depositos.push({
         data,
-        numero_conta,
-        valor
+        numero_conta: numeroContaInt,
+        valor: valorFloat
     })
-    
-    return res.status(204).json()
+
+    // 7. Resposta com confirmação
+    return res.status(200).json({
+        mensagem: "Depósito efetuado com sucesso.",
+        valor_depositado: valorFloat.toFixed(2),
+        saldo_atual: conta.saldo.toFixed(2)
+    });
 
 }
 
