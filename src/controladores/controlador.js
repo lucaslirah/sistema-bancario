@@ -316,43 +316,39 @@ const consultarSaldo = (req, res) => {
 const consultarExtrato = (req, res) => {
     const { numero_conta, senha } = req.query
 
+    // 1. Validação de campos obrigatórios
     if (!numero_conta || !senha) {
-        return res.status(400).json({mensagem: "Número da conta e senha são obrigatórios!"})
+        return res.status(400).json({ mensagem: "Número da conta e senha são obrigatórios." })
     }
 
-    const contaAchada = contas.find((conta) => {
-        return conta.numero === Number(numero_conta)
-    })
+    // 2. Conversão segura
+    const numeroContaInt = parseInt(numero_conta, 10)
 
-    if (!contaAchada) {
-        return res.status(404).json({mensagem: "Conta não encontrada!"})
+    // 3. Busca da conta
+    const conta = contas.find(conta => conta.numero_conta === numeroContaInt)
+    if (!conta) {
+        return res.status(404).json({ mensagem: "Conta não encontrada." })
     }
 
-    if (senha !== contaAchada.usuario.senha) {
-        return res.status(403).json({mensagem: "Senha incorreta!"})
+    // 4. Validação de senha
+    if (senha !== conta.usuario.senha) {
+        return res.status(403).json({ mensagem: "Senha incorreta." })
     }
 
-    const depositosConta = depositos.filter((deposito) => {
-        return deposito.numero_conta === numero_conta
-    })
+    // 5. Filtragem de movimentações
+    const depositosConta = depositos.filter(deposito => deposito.numero_conta === numeroContaInt)
+    const saquesConta = saques.filter(saque => saque.numero_conta === numeroContaInt)
+    const transferenciasEnviadasConta = transferenciasEnviadas.filter(t => t.numero_conta_origem === numeroContaInt)
+    const transferenciasRecebidasConta = transferenciasRecebidas.filter(t => t.numero_conta_destino === numeroContaInt)
 
-    const saquesConta = saques.filter((saque) => {
-        return saque.numero_conta === numero_conta
-    })
-
-    const transferenciasEnviadasConta = transferenciasEnviadas.filter((transferencias) => {
-        return transferencias.numero_conta_origem === numero_conta
-    })
-
-    const transferenciasRecebidasConta = transferenciasRecebidas.filter((transferencias) => {
-        return transferencias.numero_conta_destino === numero_conta
-    })
-
-    return res.status(201).json({
+    // 6. Resposta
+    return res.status(200).json({
+        mensagem: "Extrato da conta recuperado com sucesso.",
+        saldo_atual: conta.saldo.toFixed(2),
         depositos: depositosConta,
         saques: saquesConta,
-        transferenciasEnviadas: transferenciasEnviadasConta,
-        transferenciasRecebidas: transferenciasRecebidasConta
+        transferencias_enviadas: transferenciasEnviadasConta,
+        transferencias_recebidas: transferenciasRecebidasConta
     })
 }
 
