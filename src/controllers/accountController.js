@@ -1,5 +1,5 @@
 const { contas } = require('../database/database')
-const { findAccountByCpf, findAccountByEmail } = require('../utils/validators')
+const { findAccountByCpf, findAccountByEmail, isCpfInUse, isEmailInUse } = require('../utils/validators')
 const { generateAccountNumber } = require('../utils/accountNumberGenerator')
 
 const listAccounts = (req, res) => {
@@ -90,49 +90,54 @@ const deleteAccount = (req, res) => {
     return res.status(204).send()
 }
 
-const atualizarUsuario = (req, res) => {
+const updateUser = (req, res) => {
     const { accountNumber } = req.params
     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
 
-    if (isNaN(accountNumber)) {
+    const accountNumberInt = parseInt(accountNumber, 10)
+
+    if (isNaN(accountNumberInt)) {
         return res.status(400).json({mensagem: "Número de conta inválido!"})
-    }
-
-    const accountIndex = contas.findIndex((conta) => {
-        return conta.numero === Number(accountNumber)
-    })
-
-    if (accountIndex === -1) {
-        return res.status(404).json({mensagem: "Conta não encontrada!"})
     }
 
     if (!nome || !cpf || !data_nascimento || !telefone || !email || !senha) {
         return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
     }
 
-    if (findAccountByCpf(cpf)) {
-        return res.status(400).json({mensagem: "O CPF informado já existe cadastrado!"})
+    const accountIndex = contas.findIndex(account => 
+        account.numero_conta === accountNumberInt
+    )
+
+    if (accountIndex === -1) {
+        return res.status(404).json({mensagem: "Conta não encontrada!"})
     }
-    if (findAccountByEmail(email)) {
-        return res.status(400).json({mensagem: "O E-mail informado já existe cadastrado!"})
+
+    if (isCpfInUse(cpf, accountNumberInt)) {
+        return res.status(400).json({ mensagem: "O CPF informado já está vinculado a outra conta" })
     }
 
-    // const accountIndex = contas.findIndex((conta) => {
-    //     return conta.numero === Number(accountNumber)
-    // })
+    if (isEmailInUse(email, accountNumberInt)) {
+        return res.status(400).json({ mensagem: "O E-mail informado já está vinculado a outra conta" })
+    }
 
-    contas[accountIndex].usuario.nome = nome
-    contas[accountIndex].usuario.cpf = cpf
-    contas[accountIndex].usuario.data_nascimento = data_nascimento
-    contas[accountIndex].usuario.telefone = telefone
-    contas[accountIndex].usuario.email = email
-    contas[accountIndex].usuario.senha = senha
+    contas[accountIndex].usuario = {
+        nome,
+        cpf,
+        data_nascimento,
+        telefone,
+        email,
+        senha
+    }
 
-    return res.status(201).json()
+    return res.status(201).json({
+        mensagem: "Dados do usuário atualizados com sucesso!",
+        usuario: contas[accountIndex].usuario
+    })
 }
 
 module.exports = {
     listAccounts,
     createAccount,
-    deleteAccount
-};
+    deleteAccount,
+    updateUser
+}
