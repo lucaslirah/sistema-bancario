@@ -17,7 +17,7 @@ router.put('/accounts/:accountNumber/user', authMiddleware, accountController.up
 router.delete('/accounts/:accountNumber', authMiddleware, accountController.deleteAccount)
 
 // Transactions
-// router.post('/transactions/deposit', transactionController.deposit)
+router.post('/transactions/deposit', authMiddleware, transactionController.deposit)
 // router.post('/transactions/withdraw', transactionController.withdraw)
 // router.post('/transactions/transfer', transactionController.transfer)
 

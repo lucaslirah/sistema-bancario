@@ -1,44 +1,46 @@
-const depositarValor = (req, res) => {
-    const { numero_conta, valor } = req.body
+const { contas, depositos } = require('../database/database')
+const { format } = require('date-fns')
 
-    // 1. Validação de campos obrigatórios
-    if (!numero_conta || !valor) {
-        return res.status(400).json({ mensagem: "O número da conta e o valor são obrigatórios." })
+const deposit = (req, res) => {
+    const { accountNumber, amount } = req.body
+
+    // 1. Verificação de campos obrigatórios
+    if (!accountNumber || !amount) {
+        return res.status(400).json({ mensagem: "Número da conta e valor são obrigatórios" })
     }
 
-    // 2. Conversão de valores
-    const numeroContaInt = parseInt(numero_conta, 10)
-    const valorFloat = parseFloat(valor)
+    // 2. Conversão segura
+    const accountNumberInt = parseInt(accountNumber, 10)
+    const amountFloat = parseFloat(amount)
 
     // 3. Validação do valor
-    if (isNaN(valorFloat) || valorFloat <= 0) {
-        return res.status(400).json({ mensagem: "Valor de depósito inválido." })
+    if (isNaN(amountFloat) || amountFloat <= 0) {
+        return res.status(400).json({ mensagem: "Valor de depósito inválido" })
     }
 
     // 4. Busca da conta
-    const conta = contas.find(conta => conta.numero_conta === numeroContaInt)
-    if (!conta) {
-        return res.status(404).json({ mensagem: "Conta não encontrada." })
+    const account = contas.find(acc => acc.numero_conta === accountNumberInt)
+    if (!account) {
+        return res.status(404).json({ mensagem: "Conta não encontrada" })
     }
 
     // 5. Atualização do saldo
-    conta.saldo += valorFloat
+    account.saldo += amountFloat
 
-    // 6. Registro do depósito
-    const data = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    // 6. Registro da operação
+    const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     depositos.push({
-        data,
-        numero_conta: numeroContaInt,
-        valor: valorFloat
+        data: timestamp,
+        numero_conta: accountNumberInt,
+        valor: amountFloat
     })
 
-    // 7. Resposta com confirmação
+    // 7. Retorno da API
     return res.status(200).json({
-        mensagem: "Depósito efetuado com sucesso.",
-        valor_depositado: valorFloat.toFixed(2),
-        saldo_atual: conta.saldo.toFixed(2)
+        mensagem: "Depósito efetuado com sucesso",
+        valor_depositado: amountFloat.toFixed(2),
+        saldo_atual: account.saldo.toFixed(2)
     })
-
 }
 
 const sacarValor = (req, res) => {
@@ -156,4 +158,8 @@ const transferirValores = (req, res) => {
         saldo_origem: contaOrigem.saldo.toFixed(2),
         saldo_destino: contaDestino.saldo.toFixed(2)
     })
+}
+
+module.exports = {
+    deposit
 }
