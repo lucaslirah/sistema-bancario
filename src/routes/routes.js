@@ -12,9 +12,9 @@ const authMiddleware = require('../middlewares/authMiddleware')
 
 // Account Routes
 router.get('/accounts', authMiddleware, accountController.listAccounts)
-router.post('/accounts', accountController.createAccount)
+router.post('/accounts', authMiddleware, accountController.createAccount)
 // router.put('/accounts/:accountNumber/user', accountController.updateUser)
-router.delete('/accounts/:accountNumber', accountController.deleteAccount)
+router.delete('/accounts/:accountNumber', authMiddleware, accountController.deleteAccount)
 
 // Transactions
 // router.post('/transactions/deposit', transactionController.deposit)

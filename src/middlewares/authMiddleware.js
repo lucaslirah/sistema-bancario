@@ -1,12 +1,12 @@
 const authMiddleware = (req, res, next) => {
-    const { bank_password } = req.query
+    const bankPassword = req.headers.authorization
 
-    if (!bank_password) {
-        return res.status(400).json({ mensagem: "Senha necessária." })
+    if (!bankPassword) {
+        return res.status(400).json({ mensagem: "Cabeçalho de autorização obrigatório." })
     }
 
-    if (bank_password !== "Cubos123Bank") {
-        return res.status(401).json({ mensagem: "A senha do banco informada é inválida!" })
+    if (bankPassword !== "Cubos123Bank") {
+        return res.status(401).json({ mensagem: "Senha do banco inválida!" })
     }
 
     next()
