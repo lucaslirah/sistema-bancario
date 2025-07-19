@@ -1,8 +1,10 @@
 const express = require('express')
-const rotas = require('./rotas')
+const router = require('./routes/routes')
 const app = express()
 
 app.use(express.json())
-app.use(rotas)
+app.use(router)
 
-app.listen(3000)
+app.listen(3000, () => {
+    console.log("Servidor iniciado na porta 3000");
+})
