@@ -22,7 +22,7 @@ router.delete('/accounts/:accountNumber', authMiddleware, accountController.dele
 // router.post('/transactions/transfer', transactionController.transfer)
 
 // Balance & Statement
-// router.get('/accounts/balance', balanceController.getAccountBalance)
+router.get('/accounts/balance', balanceController.getAccountBalance)
 // router.get('/accounts/statement', statementController.getStatement)
 
 module.exports = router
