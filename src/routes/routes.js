@@ -23,7 +23,7 @@ router.post('/transactions/withdraw', authMiddleware, transactionController.with
 router.post('/transactions/transfer', transactionController.transfer)
 
 // Balance & Statement
-router.get('/accounts/balance', balanceController.getAccountBalance)
+router.get('/accounts/balance', userAuthMiddleware, balanceController.getAccountBalance)
 router.get('/accounts/statement', userAuthMiddleware, statementController.getStatement)
 
 module.exports = router
