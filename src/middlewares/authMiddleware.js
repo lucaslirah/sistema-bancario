@@ -1,3 +1,5 @@
+const { banco } = require('../database/database')
+
 const authMiddleware = (req, res, next) => {
     const bankPassword = req.headers.authorization
 
@@ -5,7 +7,7 @@ const authMiddleware = (req, res, next) => {
         return res.status(400).json({ mensagem: "Cabeçalho de autorização obrigatório." })
     }
 
-    if (bankPassword !== "Cubos123Bank") {
+    if (bankPassword !== banco.senha) {
         return res.status(401).json({ mensagem: "Senha do banco inválida!" })
     }
 
