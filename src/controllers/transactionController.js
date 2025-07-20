@@ -1,4 +1,4 @@
-const { contas, depositos } = require('../database/database')
+const { contas, depositos, saques } = require('../database/database')
 const { format } = require('date-fns')
 
 const deposit = (req, res) => {
@@ -43,48 +43,64 @@ const deposit = (req, res) => {
     })
 }
 
-const sacarValor = (req, res) => {
-    const { numero_conta, valor, senha } = req.body
+const withdraw = (req, res) => {
+    const { accountNumber, amount } = req.body
+    const password = req.headers['x-account-password']
 
-    if (!numero_conta || !valor || !senha) {
-        return res.status(400).json({mensagem: "Todos os campos são obrigatórios!"})
+    // 1. Validação dos campos obrigatórios
+    if (!accountNumber || !amount || !password) {
+        return res.status(400).json({ mensagem: "Número da conta, valor e senha são obrigatórios" })
     }
 
-    const contaAchada = contas.find((conta) => {
-        return conta.numero === Number(numero_conta)
-    })
+    // 2. Conversões seguras
+    const accountNumberInt = parseInt(accountNumber, 10)
+    const amountFloat = parseFloat(amount)
 
-    if (!contaAchada) {
-        return res.status(404).json({mensagem: "Conta não encontrada!"})
+    if (isNaN(accountNumberInt)) {
+        return res.status(400).json({ mensagem: "Número de conta inválido" })
     }
 
-    if (senha !== contaAchada.usuario.senha) {
-        return res.status(403).json({mensagem: "Senha incorreta!"})
+    if (isNaN(amountFloat) || amountFloat <= 0) {
+        return res.status(400).json({ mensagem: "Informe um valor de saque válido" })
     }
 
-    if (contaAchada.saldo === 0) {
-        return res.status(400).json({mensagem: "A conta possui saldo zerado!"})
+    // 3. Busca da conta
+    const account = contas.find(acc => acc.numero_conta === accountNumberInt)
+    if (!account) {
+        return res.status(404).json({ mensagem: "Conta não encontrada" })
     }
 
-    if (valor <= 0) {
-        return res.status(400).json({mensagem: "Informe um valor de saque válido!"})
+    // 4. Verificação da senha
+    if (password !== account.usuario.senha) {
+        return res.status(403).json({ mensagem: "Senha incorreta" })
     }
 
-    if (valor > contaAchada.saldo) {
-        return res.status(400).json({mensagem: "Saldo insuficiente!"})
+    // 5. Verificação de saldo
+    if (account.saldo === 0) {
+        return res.status(400).json({ mensagem: "A conta possui saldo zerado" })
     }
 
-    contaAchada.saldo -= valor
+    if (amountFloat > account.saldo) {
+        return res.status(400).json({ mensagem: "Saldo insuficiente" })
+    }
 
-    const data = format(new Date(), 'yyyy-dd-MM-HH:mm:ss')
+    // 6. Atualização do saldo
+    account.saldo -= amountFloat
 
+    // 7. Registro do saque
+    const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     saques.push({
-        data,
-        numero_conta,
-        valor
+        data: timestamp,
+        numero_conta: accountNumberInt,
+        valor: amountFloat
     })
 
-    return res.status(204).json()
+    // 8. Resposta da API
+    return res.status(200).json({
+        mensagem: "Saque realizado com sucesso",
+        valor_sacado: amountFloat.toFixed(2),
+        saldo_atual: account.saldo.toFixed(2)
+    })
 }
 
 const transferirValores = (req, res) => {
@@ -161,5 +177,6 @@ const transferirValores = (req, res) => {
 }
 
 module.exports = {
-    deposit
+    deposit,
+    withdraw
 }
