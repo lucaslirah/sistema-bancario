@@ -20,6 +20,22 @@ const generateAccountNumber = (telefone) => {
   return AccountNumber
 }
 
+// Função para validar número da conta
+const validateAccountNumber = (number) => {
+    const int = parseInt(number, 10)
+    if (isNaN(int)) throw new Error("Número de conta inválido.")
+    return int
+}
+
+// Função para buscar número da conta
+const getAccountIndexByNumber = (number, contas) => {
+    const index = contas.findIndex(c => c.numero_conta === number)
+    if (index === -1) throw new Error("Conta não encontrada.")
+    return index
+}
+
 module.exports = {
-    generateAccountNumber
+    generateAccountNumber,
+    validateAccountNumber,
+    getAccountIndexByNumber
 }

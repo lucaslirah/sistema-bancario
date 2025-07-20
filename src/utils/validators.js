@@ -24,9 +24,20 @@ const isEmailInUse = (email, currentAccountNumber) => {
     )
 }
 
+// Valida os campos obrigatórios
+const validateRequiredFields = (fields) => {
+    for (const key in fields) {
+        if (!fields[key]) {
+            return `O campo '${key}' é obrigatório.`
+        }
+    }
+    return null
+}
+
 module.exports = {
     findAccountByCpf,
     findAccountByEmail,
     isCpfInUse,
-    isEmailInUse
+    isEmailInUse,
+    validateRequiredFields
 }
