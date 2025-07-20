@@ -9,6 +9,7 @@ const balanceController = require('../controllers/balanceController')
 
 // Middleware
 const authMiddleware = require('../middlewares/authMiddleware')
+const userAuthMiddleware = require('../middlewares/userAuthMiddleware')
 
 // Account Routes
 router.get('/accounts', authMiddleware, accountController.listAccounts)
@@ -23,6 +24,6 @@ router.post('/transactions/transfer', authMiddleware, transactionController.tran
 
 // Balance & Statement
 router.get('/accounts/balance', balanceController.getAccountBalance)
-// router.get('/accounts/statement', statementController.getStatement)
+router.get('/accounts/statement', statementController.getStatement)
 
 module.exports = router
