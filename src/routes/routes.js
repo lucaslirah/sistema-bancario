@@ -19,11 +19,11 @@ router.delete('/accounts/:accountNumber', authMiddleware, accountController.dele
 
 // Transactions
 router.post('/transactions/deposit', authMiddleware, transactionController.deposit)
-router.post('/transactions/withdraw', authMiddleware, transactionController.withdraw)
-router.post('/transactions/transfer', transactionController.transfer)
+router.post('/transactions/withdraw', authMiddleware, userAuthMiddleware, transactionController.withdraw)
+router.post('/transactions/transfer', authMiddleware, userAuthMiddleware, transactionController.transfer)
 
 // Balance & Statement
-router.get('/accounts/balance', userAuthMiddleware, balanceController.getAccountBalance)
-router.get('/accounts/statement', userAuthMiddleware, statementController.getStatement)
+router.get('/accounts/balance', authMiddleware, userAuthMiddleware, balanceController.getAccountBalance)
+router.get('/accounts/statement', authMiddleware, userAuthMiddleware, statementController.getStatement)
 
 module.exports = router
