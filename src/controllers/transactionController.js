@@ -1,188 +1,132 @@
 const { contas, depositos, saques, transferenciasEnviadas, transferenciasRecebidas } = require('../database/database')
 const { format } = require('date-fns')
 
+const { validateAccountNumber } = require('../utils/accountUtils')
+
+const { validateTransactionAmount, hasSufficientBalance } = require('../utils/transactionUtils')
+
 const deposit = (req, res) => {
-    const { accountNumber, amount } = req.body
+  // 1. Captura e validação dos dados recebidos no corpo da requisição
+  const { accountNumber, amount } = req.body
 
-    // 1. Verificação de campos obrigatórios
-    if (!accountNumber || !amount) {
-        return res.status(400).json({ mensagem: "Número da conta e valor são obrigatórios" })
-    }
+  try {
+    const accountNumberInt = validateAccountNumber(accountNumber)
+    const amountFloat = validateTransactionAmount(amount)
 
-    // 2. Conversão segura
-    const accountNumberInt = parseInt(accountNumber, 10)
-    const amountFloat = parseFloat(amount)
-
-    // 3. Validação do valor
-    if (isNaN(amountFloat) || amountFloat <= 0) {
-        return res.status(400).json({ mensagem: "Valor de depósito inválido" })
-    }
-
-    // 4. Busca da conta
+    // 2. Busca da conta de destino no banco de dados (array contas)
     const account = contas.find(acc => acc.numero_conta === accountNumberInt)
     if (!account) {
-        return res.status(404).json({ mensagem: "Conta não encontrada" })
+      return res.status(404).json({ mensagem: "Conta não encontrada." })
     }
 
-    // 5. Atualização do saldo
+    // 3. Atualização do saldo
     account.saldo += amountFloat
 
-    // 6. Registro da operação
+    // 4. Registro da operação no extrato de depósitos
     const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     depositos.push({
-        data: timestamp,
-        numero_conta: accountNumberInt,
-        valor: amountFloat
+      data: timestamp,
+      numero_conta: accountNumberInt,
+      valor: amountFloat
     })
 
-    // 7. Retorno da API
+    // 5. Retorno para o cliente com valor e saldo atual formatado
     return res.status(200).json({
-        mensagem: "Depósito efetuado com sucesso",
-        valor_depositado: amountFloat.toFixed(2),
-        saldo_atual: account.saldo.toFixed(2)
+      mensagem: "Depósito efetuado com sucesso.",
+      valor_depositado: amountFloat.toFixed(2),
+      saldo_atual: account.saldo.toFixed(2)
     })
+  } catch (error) {
+    return res.status(400).json({ mensagem: error.message })
+  }
 }
 
 const withdraw = (req, res) => {
-    const { accountNumber, amount } = req.body
-    const password = req.headers['x-account-password']
+  // 1. A conta já está disponível via userAuthMiddleware
+  const account = req.account
+  const { amount } = req.body
 
-    // 1. Validação dos campos obrigatórios
-    if (!accountNumber || !amount || !password) {
-        return res.status(400).json({ mensagem: "Número da conta, valor e senha são obrigatórios" })
-    }
+  try {
+    const amountFloat = validateTransactionAmount(amount)
 
-    // 2. Conversões seguras
-    const accountNumberInt = parseInt(accountNumber, 10)
-    const amountFloat = parseFloat(amount)
+    // 2. Verificação de saldo suficiente
+    hasSufficientBalance(account, amountFloat)
 
-    if (isNaN(accountNumberInt)) {
-        return res.status(400).json({ mensagem: "Número de conta inválido" })
-    }
-
-    if (isNaN(amountFloat) || amountFloat <= 0) {
-        return res.status(400).json({ mensagem: "Informe um valor de saque válido" })
-    }
-
-    // 3. Busca da conta
-    const account = contas.find(acc => acc.numero_conta === accountNumberInt)
-    if (!account) {
-        return res.status(404).json({ mensagem: "Conta não encontrada" })
-    }
-
-    // 4. Verificação da senha
-    if (password !== account.usuario.senha) {
-        return res.status(403).json({ mensagem: "Senha incorreta" })
-    }
-
-    // 5. Verificação de saldo
-    if (account.saldo === 0) {
-        return res.status(400).json({ mensagem: "A conta possui saldo zerado" })
-    }
-
-    if (amountFloat > account.saldo) {
-        return res.status(400).json({ mensagem: "Saldo insuficiente" })
-    }
-
-    // 6. Atualização do saldo
+    // 3. Atualização do saldo após o saque
     account.saldo -= amountFloat
 
-    // 7. Registro do saque
+    // 4. Registro da operação no extrato de saques
     const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     saques.push({
-        data: timestamp,
-        numero_conta: accountNumberInt,
-        valor: amountFloat
+      data: timestamp,
+      numero_conta: account.numero_conta,
+      valor: amountFloat
     })
 
-    // 8. Resposta da API
+    // 5. Retorno da confirmação
     return res.status(200).json({
-        mensagem: "Saque realizado com sucesso",
-        valor_sacado: amountFloat.toFixed(2),
-        saldo_atual: account.saldo.toFixed(2)
+      mensagem: "Saque realizado com sucesso.",
+      valor_sacado: amountFloat.toFixed(2),
+      saldo_atual: account.saldo.toFixed(2)
     })
+  } catch (error) {
+    return res.status(400).json({ mensagem: error.message })
+  }
 }
 
 const transfer = (req, res) => {
-    const { sourceAccount, destinationAccount, amount } = req.body
-    const password = req.headers['x-account-password']
+  // 1. Conta de origem está disponível via userAuthMiddleware
+  const originAccount = req.account
+  const { destinationAccount, amount } = req.body
 
-    // 1. Validação de campos obrigatórios
-    if (!sourceAccount || !destinationAccount || !amount || !password) {
-        return res.status(400).json({ mensagem: "Número das contas, valor e senha são obrigatórios" })
+  try {
+    const destinationAccountInt = validateAccountNumber(destinationAccount)
+    const amountFloat = validateTransactionAmount(amount)
+
+    // 2. Verificação para evitar transferência entre mesma conta
+    if (originAccount.numero_conta === destinationAccountInt) {
+      return res.status(400).json({ mensagem: "A conta de origem e destino devem ser diferentes." })
     }
 
-    // 2. Conversões seguras
-    const sourceInt = parseInt(sourceAccount, 10)
-    const destInt = parseInt(destinationAccount, 10)
-    const amountFloat = parseFloat(amount)
-
-    if (isNaN(sourceInt) || isNaN(destInt)) {
-        return res.status(400).json({ mensagem: "Número de conta inválido" })
-    }
-
-    if (isNaN(amountFloat) || amountFloat <= 0) {
-        return res.status(400).json({ mensagem: "Informe um valor de transferência válido" })
-    }
-
-    // 3. Verificação de contas distintas
-    if (sourceInt === destInt) {
-        return res.status(400).json({ mensagem: "As contas de origem e destino devem ser diferentes" })
-    }
-
-    // 4. Busca de contas
-    const originAccount = contas.find(acc => acc.numero_conta === sourceInt)
-    const destinationAccountData = contas.find(acc => acc.numero_conta === destInt)
-
-    if (!originAccount) {
-        return res.status(404).json({ mensagem: "Conta de origem não encontrada" })
-    }
-
+    // 3. Busca da conta de destino no banco de dados (array contas)
+    const destinationAccountData = contas.find(acc => acc.numero_conta === destinationAccountInt)
     if (!destinationAccountData) {
-        return res.status(404).json({ mensagem: "Conta de destino não encontrada" })
+      return res.status(404).json({ mensagem: "Conta de destino não encontrada." })
     }
 
-    // 5. Validação de senha
-    if (password !== originAccount.usuario.senha) {
-        return res.status(403).json({ mensagem: "Senha incorreta" })
-    }
+    // 4. Verificação de saldo suficiente
+    hasSufficientBalance(originAccount, amountFloat)
 
-    // 6. Verificação de saldo
-    if (originAccount.saldo < amountFloat) {
-        return res.status(400).json({ mensagem: "Saldo insuficiente" })
-    }
-
-    // 7. Atualização dos saldos
+    // 5. Atualização de saldos nas duas contas
     originAccount.saldo -= amountFloat
     destinationAccountData.saldo += amountFloat
 
-    // 8. Registro da transferência
+    // 6. Registro da operação no extrato de transferências
     const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-    transferenciasEnviadas.push({
-        data: timestamp,
-        numero_conta_origem: sourceInt,
-        numero_conta_destino: destInt,
-        valor: amountFloat
-    })
+    const transfer = {
+      data: timestamp,
+      numero_conta_origem: originAccount.numero_conta,
+      numero_conta_destino: destinationAccountInt,
+      valor: amountFloat
+    }
 
-    transferenciasRecebidas.push({
-        data: timestamp,
-        numero_conta_origem: sourceInt,
-        numero_conta_destino: destInt,
-        valor: amountFloat
-    })
+    transferenciasEnviadas.push(transfer)
+    transferenciasRecebidas.push(transfer)
 
-    // 9. Retorno da operação
+    // 7. Retorno da operação realizada
     return res.status(200).json({
-        mensagem: "Transferência realizada com sucesso",
-        valor_transferido: amountFloat.toFixed(2),
-        saldo_origem: originAccount.saldo.toFixed(2),
-        saldo_destino: destinationAccountData.saldo.toFixed(2)
+      mensagem: "Transferência realizada com sucesso.",
+      valor_transferido: amountFloat.toFixed(2),
+      saldo_origem: originAccount.saldo.toFixed(2),
+      saldo_destino: destinationAccountData.saldo.toFixed(2)
     })
+  } catch (error) {
+    return res.status(400).json({ mensagem: error.message })
+  }
 }
 
 module.exports = {
-    deposit,
-    withdraw, 
-    transfer
+  deposit,
+  withdraw,
+  transfer
 }
