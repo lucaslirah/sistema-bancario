@@ -1,27 +1,34 @@
-const { contas } = require("../database/database")
+// const { contas } = require("../database/database")
+const connection = require("../database/connection")
 
 // Verifica se existe alguma conta com o CPF informado
-const findAccountByCpf = (cpf) => {
-    return contas.find(account => account.usuario.cpf === cpf)
+const findAccountByCpf = async (cpf) => {
+    return await connection('contas').where({ cpf }).first()
+    // return contas.find(account => account.usuario.cpf === cpf)
 }
 
 // Verifica se existe alguma conta com o e-mail informado
-const findAccountByEmail = (email) => {
-    return contas.find(account => account.usuario.email === email)
+const findAccountByEmail = async (email) => {
+    return await connection('contas').where({ email }).first()
+    // return contas.find(account => account.usuario.email === email)
 }
 
 // Verifica se o CPF já está em uso por outra conta
-const isCpfInUse = (cpf, currentAccountNumber) => {
-    return contas.find(account => 
-        account.usuario.cpf === cpf && account.numero_conta !== currentAccountNumber
-    )
+const isCpfInUse = async (cpf, currentAccountNumber) => {
+    return await connection('contas')
+        .where({ cpf })
+        .andWhereNot({ numero_conta: currentAccountNumber })
+        .first()
+    // return contas.find(account => account.usuario.cpf === cpf && account.numero_conta !== currentAccountNumber)
 }
 
 // Verifica se o e-mail já está em uso por outra conta
-const isEmailInUse = (email, currentAccountNumber) => {
-    return contas.find(account => 
-        account.usuario.email === email && account.numero_conta !== currentAccountNumber
-    )
+const isEmailInUse = async (email, currentAccountNumber) => {
+    return await connection('contas')
+        .where({ email })
+        .andWhereNot({ numero_conta: currentAccountNumber })
+        .first()
+    // return contas.find(account => account.usuario.email === email && account.numero_conta !== currentAccountNumber)
 }
 
 // Valida os campos obrigatórios
