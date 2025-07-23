@@ -1,24 +1,32 @@
-const { contas } = require('../database/database')
+// const { contas } = require('../database/database')
+const connection = require('../database/connection')
 const { findAccountByCpf, findAccountByEmail, isCpfInUse, isEmailInUse, validateRequiredFields } = require('../utils/validators')
 const { generateAccountNumber, validateAccountNumber,  getAccountIndexByNumber} = require('../utils/accountUtils')
-
-const listAccounts = (req, res) => {
-    return res.status(200).json(contas)
+  
+// função assíncrona para consultar banco de dados e retornar todas as contas
+const listAccounts = async (req, res) => {
+    try {
+        const accounts = await connection('contas').select('*')
+        return res.status(200).json(accounts)
+    } catch (error) {
+        console.error("Erro ao listar contas:", error)
+        return res.status(500).json({ mensagem: "Erro interno do servidor ao listar contas." })
+    }
 }
 
-const createAccount = (req, res) => {
+const createAccount = async (req, res) => {
     const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
 
     //  1. Validação de campos obrigatórios
     const missingFields = validateRequiredFields({ nome, cpf, email })
     if (missingFields) return res.status(400).json({ mensagem: missingFields })
 
-    //  2. Validações de CPF e E-mail únicos
-    if (findAccountByCpf(cpf)) {
+    try {
+        //  2. Validações de CPF e E-mail únicos
+    if (await findAccountByCpf(cpf)) {
         return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado." })
     }
-
-    if (findAccountByEmail(email)) {
+    if (await findAccountByEmail(email)) {
         return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado." })
     }
 
@@ -28,32 +36,34 @@ const createAccount = (req, res) => {
         return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." })
     }
 
-    //  4. Geração do número da conta (com tratamento de erro)
-    let accountNumber
-    try {
-        accountNumber = generateAccountNumber(formattedPhone)
-    } catch (error) {
-        return res.status(400).json({ mensagem: error.message })
-    }
+    //  4. Geração do número da conta
+    const accountNumber = await generateAccountNumber(formattedPhone)
+    console.log("Número da conta gerado:", accountNumber)
 
     //  5. Criação da conta
-    const newAccount = {
-        numero_conta: Number(accountNumber),
-        saldo: 0,
-        usuario: {
+    const [newAccount] = await connection('contas')
+    .insert({
+        numero_conta: accountNumber,
             nome,
             cpf,
             data_nascimento,
             telefone: formattedPhone,
             email,
-            senha
+            senha,
+            saldo: 0
+        }).returning('*')
+
+    //  6. Resposta
+    return res.status(201).json(
+            { mensagem: "Conta criada com sucesso!", conta: newAccount }
+        )
+    } catch (error) {
+        console.error("Erro ao criar conta:", error)
+        return res.status(500).json(
+                { mensagem: "Erro interno do servidor ao criar conta." }
+            )
         }
     }
-
-    //  6. Persistência e resposta
-    contas.push(newAccount)
-    return res.status(201).json({ mensagem: "Conta criada com sucesso!", conta: newAccount })
-}
 
 const deleteAccount = (req, res) => {
     const { accountNumber } = req.params
