@@ -93,48 +93,65 @@ const deleteAccount = (req, res) => {
     return res.status(204).send()
 }
 
-const updateUser = (req, res) => {
-  const { accountNumber } = req.params
+const updateUser = async (req, res) => {
+   // 1. Valida e converte o número da conta recebido por parâmetro
+  const numero_conta = validateAccountNumber(req.params.numero_conta)
+
+  // 2. Captura os dados do corpo da requisição
   const { nome, cpf, data_nascimento, telefone, email, senha } = req.body
 
-  // 1. Validação de campos obrigatórios
-  const missingFields = validateRequiredFields({ nome, cpf, data_nascimento, telefone, email, senha })
-  if (missingFields) return res.status(400).json({ mensagem: missingFields })
-
-  let accountNumberInt, accountIndex
+  // 3. Verifica se todos os campos obrigatórios foram enviados
+  const missing = validateRequiredFields({ nome, cpf, data_nascimento, telefone, email, senha })
+  if (missing) return res.status(400).json({ mensagem: missing })
 
   try {
-    // 2. Conversão e busca da conta
-    accountNumberInt = validateAccountNumber(accountNumber)
-    accountIndex = getAccountIndexByNumber(accountNumberInt, contas)
+    // 4. Verifica se a conta existe no banco
+    const account = await connection('contas')
+      .where({numero_conta})
+      .first()
+
+    if (!account) {
+      return res.status(404).json({ mensagem: "Conta não encontrada." })
+    }
+
+    // 5. Verifica se o novo CPF já está em uso por outra conta
+    if (await isCpfInUse(cpf, numero_conta)) {
+      return res.status(400).json({ mensagem: "Já existe uma conta com o CPF informado." })
+    }
+
+    // 6. Verifica se o novo e-mail já está em uso por outra conta
+    if (await isEmailInUse(email, numero_conta)) {
+      return res.status(400).json({ mensagem: "Já existe uma conta com o E-mail informado." })
+    }
+
+    // 7. Formata telefone para 11 dígitos
+    const formattedPhone = telefone.replace(/\D/g, '')
+    if (formattedPhone.length !== 11) {
+      return res.status(400).json({ mensagem: "Telefone precisa conter exatamente 11 dígitos." })
+    }
+
+    // 8. Atualiza os dados no banco
+    await connection('contas')
+      .where({ numero_conta })
+      .update({
+        nome,
+        cpf,
+        data_nascimento,
+        telefone: formattedPhone,
+        email,
+        senha,
+        updated_at: connection.fn.now()
+      })
+
+    // 9. Retorna confirmação
+    return res.status(200).json({
+      mensagem: "Dados atualizados com sucesso!"
+    })
+
   } catch (err) {
-    return res.status(400).json({ mensagem: err.message })
+    console.error(err)
+    return res.status(500).json({ mensagem: "Erro interno no servidor." })
   }
-
-  // 3. Verificações de unicidade
-  if (isCpfInUse(cpf, accountNumberInt)) {
-    return res.status(400).json({ mensagem: "O CPF informado já está vinculado a outra conta" })
-  }
-
-  if (isEmailInUse(email, accountNumberInt)) {
-    return res.status(400).json({ mensagem: "O E-mail informado já está vinculado a outra conta" })
-  }
-
-  // 4. Atualização dos dados
-  contas[accountIndex].usuario = {
-    nome,
-    cpf,
-    data_nascimento,
-    telefone,
-    email,
-    senha
-  }
-
-  // 5. Retorno
-  return res.status(201).json({
-    mensagem: "Dados do usuário atualizados com sucesso!",
-    usuario: contas[accountIndex].usuario
-  })
 }
 
 module.exports = {

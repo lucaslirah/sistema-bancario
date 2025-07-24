@@ -28,7 +28,7 @@ const generateAccountNumber = async (telefone) => {
 const validateAccountNumber = (number) => {
     const int = parseInt(number, 10)
     if (isNaN(int)) throw new Error("Número de conta inválido.")
-    return int
+    return int.toString()
 }
 
 // Função para buscar número da conta
