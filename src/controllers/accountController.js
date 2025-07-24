@@ -38,7 +38,6 @@ const createAccount = async (req, res) => {
 
     //  4. Geração do número da conta
     const accountNumber = await generateAccountNumber(formattedPhone)
-    console.log("Número da conta gerado:", accountNumber)
 
     //  5. Criação da conta
     const [newAccount] = await connection('contas')
@@ -65,32 +64,38 @@ const createAccount = async (req, res) => {
         }
     }
 
-const deleteAccount = (req, res) => {
-    const { accountNumber } = req.params
-        
-    let accountNumberInt, accountIndex, account
+const deleteAccount = async (req, res) => {
+    // 1. Valida e converte número da conta recebido via parâmetro
+  const numero_conta = validateAccountNumber(req.params.numero_conta)
 
-    try {
-        // 1. Validação e conversão do número da conta
-        accountNumberInt = validateAccountNumber(accountNumber)
+  try {
+    // 2. Verifica se a conta existe
+    const account = await connection('contas')
+      .where({ numero_conta })
+      .first()
 
-        // 2. Localiza o índice da conta
-        accountIndex = getAccountIndexByNumber(accountNumberInt, contas)
-        account = contas[accountIndex]
-    } catch (error) {
-        return res.status(400).json({ mensagem: error.message })
+    if (!account) {
+      return res.status(404).json({ mensagem: "Conta não encontrada." })
     }
 
-    // Validação de saldo
-    if (account.saldo !== 0) {
-        return res.status(400).json({ mensagem: "A conta só pode ser removida se o saldo for zero." })
+    // 3. Verifica se o saldo está zerado
+    if (parseFloat(account.saldo) !== 0) {
+      return res.status(400).json({ mensagem: "A conta só pode ser removida se o saldo estiver zerado." })
     }
 
-    // Remoção direta no array original
-    contas.splice(accountIndex, 1)
+    // 4. Remove do banco
+    await connection('contas')
+      .where({ numero_conta })
+      .delete()
 
-    //  Resposta
-    return res.status(204).send()
+    // 5. Retorna sucesso
+    return res.status(200).json({ mensagem: "Conta removida com sucesso." })
+
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({ mensagem: "Erro interno no servidor." })
+  }
+
 }
 
 const updateUser = async (req, res) => {
